@@ -1,0 +1,22 @@
+
+FanvasService.swf提供了批处理的能力
+运行过程：
+1、js调用FanvsService的parse接口，传入swfurl，结果上传地址uploadURL等
+2、FanvasService拉取swf并解析
+3、FanvasService解析完毕后把数据压缩为zip，发送到uploadURL指定的服务器
+4、uploadURL返回200，则认为上传成功，触发finish
+
+提供的接口：
+parseSWF(swfURL:String, uploadURL:String, finish:String, fail:String, dataObjectName:String = "swfData", logger:String = "console.log")
+
+需要注意的是：
+为了防止XSS漏洞，Flash Object id、finish、fail、logger等都必须是字母数字下划线的组合，不能有其他特殊字符。
+
+
+
+logger参数是用于输出执行过程日志的接口，默认是console.log，例如如下的日志：
+Fanvas start. Target SWF: http://www.qq.com/1.swf" 
+fetch swf, done 
+parsing swf... 
+parse swf, done 
+start upload file

@@ -13,15 +13,14 @@
 */
 package
 {
-	import exporters.JSExporter.JSExporter;
-	
-	import flash.display.Loader;
 	import flash.display.Sprite;
 	import flash.events.Event;
 	import flash.events.MouseEvent;
 	import flash.external.ExternalInterface;
 	import flash.net.FileFilter;
 	import flash.net.FileReference;
+	
+	import exporters.JSExporter.JSExporter;
 	
 	import parsers.SWFParser;
 
@@ -33,7 +32,6 @@ package
 	[SWF(width = "510", height = "690", frameRate = "24", backgroundColor = "0xFFFFFF")]
 	public class Fanvas extends Sprite
 	{
-		public static var warningMessage:String;
 		private var _data:* = null;
 
 		public function Fanvas()
@@ -46,31 +44,25 @@ package
 				file.browse([new FileFilter("swf", "*.swf")]);
 				file.addEventListener(Event.SELECT, function(e:Event):void
 				{
-					ui.errorText.visible = false;
+					ui.errorText.text = '';
 					ui.exportDataButton.visible = false;
 					ui.loadingMask.visible = true;
 					file.load();
 					file.addEventListener(Event.COMPLETE, function(e1:Event):void
 					{
-						var loader:Loader = new Loader();
-						loader.contentLoaderInfo.addEventListener(Event.COMPLETE, function(e2:Event):void
+						var parseResult:Object = new SWFParser(file.data).parse();
+						new JSExporter().export(parseResult.swfData, function(data:*):void
 						{
-							warningMessage = "";
-							new JSExporter().export(new SWFParser(loader).parse(), function(data:*):void
-							{
-								 _data = data;
-								 if(_data is String && ExternalInterface.available)
-									 ExternalInterface.call("show", _data);
-								 if(warningMessage != "")
-								 {
-									 ui.errorText.visible = true;
-									 ui.errorText.text = warningMessage;
-								 }
-								 ui.exportDataButton.visible = true;
-								 ui.loadingMask.visible = false;
-							});
+							 _data = data;
+							 if(_data is String && ExternalInterface.available)
+								 ExternalInterface.call("show", _data);
+							 if(parseResult.warning && parseResult.warning.length > 0)
+							 {
+								 ui.errorText.text = parseResult.warning.join('\n');
+							 }
+							 ui.exportDataButton.visible = true;
+							 ui.loadingMask.visible = false;
 						});
-						loader.loadBytes(file.data);
 					});
 				});
 			});

@@ -16,12 +16,14 @@ package exporters.JSExporter
 	import com.adobe.encoders.JPGEncoder;
 	import com.adobe.encoders.PNGEncoder;
 	import com.codeazur.as3swf.SWF;
+	import com.codeazur.as3swf.data.consts.BitmapFormat;
 	import com.codeazur.as3swf.exporters.core.IShapeExporter;
 	import com.codeazur.as3swf.tags.IDefinitionTag;
 	import com.codeazur.as3swf.tags.TagDefineBits;
 	import com.codeazur.as3swf.tags.TagDefineBitsJPEG3;
 	import com.codeazur.as3swf.tags.TagDefineBitsLossless;
 	import com.codeazur.as3swf.tags.TagDefineBitsLossless2;
+	import com.codeazur.as3swf.tags.TagJPEGTables;
 	
 	import flash.display.Bitmap;
 	import flash.display.BitmapData;
@@ -29,6 +31,7 @@ package exporters.JSExporter
 	import flash.display.InterpolationMethod;
 	import flash.display.LineScaleMode;
 	import flash.display.Loader;
+	import flash.display.MovieClip;
 	import flash.display.SpreadMethod;
 	import flash.events.Event;
 	import flash.geom.Matrix;
@@ -155,16 +158,37 @@ package exporters.JSExporter
 					var alphaData:ByteArray = (tag as TagDefineBitsJPEG3).bitmapAlphaData;
 					alphaData.uncompress();
 					_imageToLoadCount++;
+					
+					//这里使用异步的原因是：同步的jpegdecoder都不健壮，某些情况下会解析出错，所以还是用flash自己的loader
 					var loader:Loader = new Loader();
 					loader.loadBytes((tag as TagDefineBits).bitmapData);
-					loader.contentLoaderInfo.addEventListener(Event.COMPLETE, function(e:Event):void
+					loader.contentLoaderInfo.addEventListener(Event.COMPLETE, bitmapLoaded);
+					
+					function bitmapLoaded(e:Event):void
 					{
+						var bitmap:Bitmap;
+						//兼容worker，在worker下，第一次load后直接访问loader.content会报沙箱冲突，再load一次就能避开，算是一个hack
+						var newLoader:Loader = new Loader();
+						try
+						{
+							bitmap = loader.content as Bitmap;
+							if(!bitmap)
+								bitmap = (loader.content as MovieClip).getChildAt(0) as Bitmap;	//在worker下，load两次后，得到的是一个movieclip
+						} 
+						catch(error:Error) 
+						{
+							newLoader.loadBytes(loader.contentLoaderInfo.bytes);
+							newLoader.contentLoaderInfo.addEventListener(Event.COMPLETE, bitmapLoaded);
+							loader = newLoader;
+							return;
+						}
+						
 						bitmapData = new BitmapData(loader.content.width, loader.content.height);
 						for (var j:int = 0; j < loader.content.height; j++) 
 						{
 							for (var i:int = 0; i < loader.content.width; i++) 
 							{
-								pixel = (loader.content as Bitmap).bitmapData.getPixel(i, j);
+								pixel = bitmap.bitmapData.getPixel(i, j);
 								r = (pixel&0xff0000)>>16;
 								g = (pixel&0x00ff00)>>8;
 								b = pixel&0x0000ff;
@@ -179,7 +203,7 @@ package exporters.JSExporter
 								bitmapData.setPixel32(i, j, (a<<24)|(r<<16)|(g<<8)|b);
 							}
 						}
-						file = PNGEncoder.encode(bitmapData);
+						file = PNGEncoder.encode(bitmapData);	//TODO 这里也可以采用新的png encoder加速
 						for (var ii:int = 0; ii < _imageList.length; ii++) 
 						{
 							if(bitmapId == _imageList[ii].id)
@@ -188,34 +212,61 @@ package exporters.JSExporter
 						_imageLoadedCount++;
 						if(_imageLoadedCount == _imageToLoadCount && _endShape)
 							_finish();
-					});
+					}
 				}
 				else
 				{
 					file.position = 0;
 					var head:uint = file.readUnsignedInt();
-					if(head == 0xffd9ffd8)
+					if(head == 0xffd9ffd8)		//Before version 8 of the SWF file format, SWF files could contain an erroneous header of 0xFF, 0xD9, 0xFF, 0xD8 before the JPEG SOI marker.
 					{
 						head = file.readUnsignedShort();
 						if(head == 0xffd8)
 						{
-							//swf8以前的旧玩意，多了一个uint头。
 							var copyFile:ByteArray = new ByteArray();
 							file.position = 4;
-							file.readBytes(copyFile);
+							file.readBytes(copyFile);		//跳过多余的4字节
 							file = copyFile;
 						}
 					}
 					file.position = 0;
+					//以上这几行只处理了DefineBitsJPEG2的jpg情况，也处理了swf 8以前偶现错误head的情况，但DefineBitsJPEG2内含png/GIF的情况没处理
+					//不过，即使是png/gif，保存为jpg后，浏览器还是能识别的
+					
+					//以下这个type==6逻辑处理旧格式DefineBits。tag中存放的jpg数据并不是完整的jpg数据，其中编码部分信息抽离到JPEGTables tag去了。
+					//包括DD DB和DD C4两部分，详细见https://en.wikipedia.org/wiki/JPEG
+					if(tag.type == 6)
+					{
+						var jpegTables:ByteArray;
+						for (var j:int = 0; j < _swf.tags.length; j++) 
+						{
+							if(_swf.tags[j] is TagJPEGTables)
+							{
+								jpegTables = (_swf.tags[j] as TagJPEGTables).jpegTables;
+								break;
+							}
+						}
+						jpegTables.position = 0;
+						head = jpegTables.readUnsignedInt();
+						if(head == 0xffd9ffd8)		//Before version 8 of the SWF file format, SWF files could contain an erroneous header of 0xFF, 0xD9, 0xFF, 0xD8 before the JPEG SOI marker.
+							jpegTables.position = 4;	//跳过
+						else
+							jpegTables.position = 0;
+						var newFile:ByteArray = new ByteArray();
+						jpegTables.readBytes(newFile, 0, jpegTables.bytesAvailable - 2);	//最后的FF D9也略过
+						file.position = 2;		//跳过原来的FF D8
+						file.readBytes(newFile, newFile.length);							//把原来jpg数据接上去
+						file = newFile;
+					}
 				}
 			}
 			//无损
 			else if(tag is TagDefineBitsLossless)
 			{
 				var pngTag:TagDefineBitsLossless = tag as TagDefineBitsLossless;
-				if(pngTag.bitmapFormat != 5)
+				if(pngTag.bitmapFormat == BitmapFormat.BIT_15)
 				{
-					Fanvas.warningMessage += "swf包含的图片含有低版本图片（无法导出该图片），请检查。";
+					//出错信息统一在parse的时候生成
 					return; 	
 				}
 				try
@@ -226,36 +277,67 @@ package exporters.JSExporter
 				{
 				}
 				bitmapData = new BitmapData(pngTag.bitmapWidth, pngTag.bitmapHeight, transparent);
-				for (var k:int = 0; k < pngTag.bitmapHeight; k++) 
+				if(pngTag.bitmapFormat == BitmapFormat.BIT_24)
 				{
-					for (var l:int = 0; l < pngTag.bitmapWidth; l++) 
+					for (var k:int = 0; k < pngTag.bitmapHeight; k++) 
 					{
-						pixel = pngTag.zlibBitmapData.readUnsignedInt();
-						if(transparent)
+						for (var l:int = 0; l < pngTag.bitmapWidth; l++) 
 						{
-							r = (pixel&0xff0000)>>16;
-							g = (pixel&0x00ff00)>>8;
-							b = pixel&0x0000ff;
-							a = (pixel/2)>>23;
-							if(a != 255 && a != 0)
+							pixel = pngTag.zlibBitmapData.readUnsignedInt();
+							if(transparent)
 							{
-								aa = a/255;
-								r = Math.min(255, r/aa);	//傻逼adobe莫名其妙的先把rgb乘了a，所以这里要先除掉a
-								g = Math.min(255, g/aa);
-								b = Math.min(255, b/aa);
+								r = (pixel&0xff0000)>>16;
+								g = (pixel&0x00ff00)>>8;
+								b = pixel&0x0000ff;
+								a = (pixel/2)>>23;
+								if(a != 255 && a != 0)
+								{
+									aa = a/255;
+									r = Math.min(255, r/aa);	//傻逼adobe莫名其妙的先把rgb乘了a，所以这里要先除掉a
+									g = Math.min(255, g/aa);
+									b = Math.min(255, b/aa);
+								}
+								bitmapData.setPixel32(l, k, (a<<24)|(r<<16)|(g<<8)|b);
 							}
-							bitmapData.setPixel32(l, k, (a<<24)|(r<<16)|(g<<8)|b);
+							else
+							{
+								bitmapData.setPixel(l, k, pixel);
+							}
 						}
-						else
+					}
+				}
+				else
+				{
+					var colorMap:Array = [];
+					for (var i:int = 0; i < pngTag.bitmapColorTableSize + 1; i++) 
+					{
+						r = pngTag.zlibBitmapData.readUnsignedByte();
+						g = pngTag.zlibBitmapData.readUnsignedByte();
+						b = pngTag.zlibBitmapData.readUnsignedByte();
+						a = transparent ? pngTag.zlibBitmapData.readUnsignedByte():0;
+						var color:uint = (a<<24)|(r<<16)|(g<<8)|b;
+						colorMap.push(color);
+					}
+					var lineWidth:int = Math.ceil(Number(pngTag.bitmapWidth * 8) / 32) * 32 / 8;		//这里凑32bit为单位，算出每行多少个字节
+					for (var k1:int = 0; k1 < pngTag.bitmapHeight; k1++) 
+					{
+						for (var l1:int = 0; l1 < lineWidth; l1++) 
 						{
-							bitmapData.setPixel(l, k, pixel);
+							var index:int = pngTag.zlibBitmapData.readUnsignedByte();
+							if(l1 < pngTag.bitmapWidth)
+							{
+								if(transparent)
+									bitmapData.setPixel32(l1, k1, colorMap[index]);
+								else
+									bitmapData.setPixel(l1, k1, colorMap[index]);
+							}
 						}
 					}
 				}
 				if(transparent)
-					file = PNGEncoder.encode(bitmapData);
+					file = PNGEncoder.encode(bitmapData);	//TODO 这里也可以采用新的png encoder加速
 				else
-					file = new JPGEncoder(100).encode(bitmapData);
+					file = new JPGEncoder(100).encode(bitmapData);	//TODO 可以采用新的jpgencoder加速
 			}
 			
 			_imageList.push({id:bitmapId, name:imageName, "file":file});

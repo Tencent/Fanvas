@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<HTML>
+<HEAD>
+<TITLE> New Document </TITLE>
+
+</HEAD>
+
+<BODY onload="init();">
+<canvas width="992" height="567" id="testCanvas"></canvas>
+<script type='text/javascript' src='../fanvas3-min.js'></script>
+<script type='text/javascript' src='./swfData.js'></script>
+<script>
+    function init() {
+        fanvas.play("testCanvas", swfData, {
+            cache: false, autoPlay: true,
+            onFrame: function (index) {
+//                    console.log("onFrame", index);
+//                    if(index == 10){
+//                        fanvas.pause("testCanvas");
+//                        setTimeout(function(){
+////                            fanvas.resume("testCanvas");
+//                            fanvas.replay("testCanvas");
+//                        }, 2000);
+//                    }
+            },
+            imagePath: "./"
+        });
+    }
+</script>
+</BODY>
+</HTML>

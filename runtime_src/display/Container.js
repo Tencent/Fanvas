@@ -183,7 +183,7 @@ var p = Container.prototype = new fanvas.DisplayObject();
 	p.removeChildAt = function(index) {
 		if (index < 0 || index > this.children.length-1) { return; }
 		var child = this.children[index];
-		if (child) { child.parent = null; }
+		if (child) { child.parent = null; child.uncache();}     //及时uncache，如果child做了cache，这样就能及时释放cache canvas，否则浏览器的GC有点问题
 		this.children.splice(index, 1);
 	};
 

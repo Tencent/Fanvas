@@ -1,0 +1,85 @@
+<meta charset='utf-8'>
+<h1 id="欢迎使用fanvas">欢迎使用Fanvas</h1>
+
+
+
+<h2 id="素材规范">素材规范</h2>
+
+<p>Fanvas 3.0能完美支持普通的Flash动画，并且加入了脏区重绘技术，运行效率更高。 使用方式略有改变，原来2.0动画能适配canvas的宽高，而3.0中，使用时不要设置canvas的width和height属性，因为fanvas会自动设置为动画的宽高的倍数（见初始化的scale参数）。
+    如果需要控制canvas在屏幕上的尺寸，请使用css。这有利于实现在移动端适配各种屏幕密度。<br><br>
+
+暂时不支持按钮、文本和补间形状，请在转化前检查fla中是否有按钮、文本或补间形状，需要先删除。 <br>
+对于设计师而言，请把文本打散或使用图片代替，这样有利于特殊字体的使用，而补间形状这个功能使用率极低，也不建议使用。<br>
+
+如果在使用中有任何问题或者希望Fanvas加入新功能，欢迎联系kenko，邮箱是kenkofox@qq.com。
+</p>
+
+<p><strong>遮罩规范：</strong> <br>
+不再需要按照Fanvas 1.0规范，但受限于canvas 2d的机制，遮罩层只能是图形或形状，不能是影片剪辑。不过，这个限制并不影响实际设计，图形一样可以做时间轴变化。另外，由于Canvas动画不支持遮罩嵌套遮罩，所以flash中从舞台到最终元件只能有一次遮罩。</p>
+
+<p><strong>滤镜规范：</strong> <br>
+使用滤镜（包括色调变化）时，元件在舞台上可以做缓动变化，但元件内部不能有时间轴变化，因为该元件在第一帧会被截图缓存起来，后续以一张图代替该元件，所以元件内部的形变不会展示。这样做的原因是，逐帧不断做滤镜处理，canvas会吃不消。 <br>
+特殊的是发光和投影，这两个由于是canvas原生支持的功能，所以不受上边滤镜规范限制。</p>
+
+
+
+<h2 id="fanvas使用步骤">Fanvas使用步骤</h2>
+
+<ol>
+<li>启动fanvas.swf程序，具体方法：先打开flashplayer_14_sa_debug.exe，拖入fanvas.swf</li>
+<li>导入swf，导出data.js。该data.js代表了swf的数据。如果swf中有位图，将导出一个zip包，包含图片和js，不要修改图片名称，把图片部署到html同一层目录或者某个相对路径/绝对路径。  </li>
+<li>在目标网页中建一个canvas标签，设置canvas的宽高（可以跟原swf不一样，fanvas将拉伸显示）。或者直接把导出的文件覆盖到demo目录中，然后打开index即可。</li>
+<li>引入fanvas-min.js，data.js，等dom完成后，调用fanvas.play即可。</li>
+</ol>
+
+<blockquote>
+  <p><strong>play接受3个参数：</strong>   </p>
+</blockquote>
+
+<ul>
+<li>第1个是canvas dom元素或者canvas的id。</li>
+<li>第2个是data.js里的变量名（打开data.js就会发现var swfData = {}的结构）。如果一个页面有多个动画，就需要让不同的data.js分别使用不同的变量名。</li>
+<li><p>第3个是播放配置，是一个对象，包括是否开启位图化缓存和图片的存放路径。</p>
+
+<pre><code>&lt;播放配置说明&gt;
+</code></pre>
+
+<ul><li><strong>cache</strong>：0/1/2，默认0。控制是否把全部矢量图形在运行时位图化。位图化后运行效率会提高，但如果过程中改变canvas宽高或矢量图放大，会出现模糊。0表示不缓存，1表示以1倍缓存，2表示2倍缓存。2能获得更清晰的效果，但性能会较差。        </li>
+<li><strong>autoPlay</strong>：true/false，默认true。false则让动画停在第一帧。后续需要调用resume让动画继续播放</li>
+    <li><strong>clearAll</strong>：0/1，默认0。1表示不使用脏区重绘，改为全屏重绘，当动画出现播放瑕疵时，尝试改为全屏重绘。</li>
+    <li><strong>showFPS</strong>：0/1，默认0。显示帧频。</li>
+    <li><strong>scale</strong>：0.1~3.0，默认1。动画按照scale的倍数等比例放缩绘制，利用这个参数可以适配手机的屏幕密度，也可以适当降低scale让低端机型提高播放流畅度。</li>
+<li><strong>onFrame</strong>：function，动画播放过程中每帧都会回调此函数。函数第一个参数是已播放的帧数。</li>
+<li><strong>imagePath</strong>：图片的存放路径。可以不配置，表示图片跟html文件放在同一层目录。 <br>
+            例如当前html是<a href="http://www.abc.com/swf/1.html">http://www.abc.com/swf/1.html</a> <br>
+            play函数传入”/imagePath1/”，则以<a href="http://www.abc.com/imagePath1/img0.jpg">http://www.abc.com/imagePath1/img0.jpg</a>拉取图片； <br>
+            传入”./imagePath1/”，则以<a href="http://www.abc.com/swf/imagePath1/img0.jpg">http://www.abc.com/swf/imagePath1/img0.jpg</a>拉取图片。 <br>
+            为了避免canvas跨域问题，需要图片跟html存放在同一域名中</li></ul></li>
+</ul>
+
+
+
+<h2 id="demo">Demo</h2>
+
+<pre><code>&lt;script type='text/javascript' src='./fanvas3-min.js'&gt;&lt;/script&gt;
+&lt;script type='text/javascript' src='./demoData.js'&gt;&lt;/script&gt;
+&lt;script&gt;
+function init() {
+    fanvas.play('testCanvas', swfData, {cache:1, autoPlay:true, onFrame:null, imagePath:"./img/"});
+}
+&lt;/script&gt;
+</code></pre>
+
+
+
+<h2 id="fanvas的播放控制接口">Fanvas的播放控制接口</h2>
+
+<ul>
+<li><strong>fanvas.replay</strong>：重头开始播放，传入canvas dom或者id，需要跟play方法对应；</li>
+<li><strong>fanvas.pause</strong>：暂停播放，传入canvas dom或者id，需要跟play方法对应。对于单页面App，建议删除canvas前先调用pause，让Timer停止，否则会造成内存泄漏和性能浪费；</li>
+<li><strong>fanvas.resume</strong>：恢复播放，传入canvas dom或者id，需要跟pause方法对应；</li>
+<li><strong>fanvas.gotoAndPlay</strong>：跳到某一帧播放，传入canvas dom或者id和帧号（从1开始）；</li>
+<li><strong>fanvas.gotoAndStop</strong>：跳到某一帧并停在那里，传入canvas dom或者id和帧号（从1开始）；</li>
+</ul>
+
+<p>结合控制接口和onFrame，大家可以自由发挥做出更多有趣的效果。</p>

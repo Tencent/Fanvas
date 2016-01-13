@@ -11,7 +11,9 @@
 * implied. See the License for the specific language governing permissions and limitations under the 
 * License.
 */
-
+/**
+ * Created by tencent on 2015/4/10.
+ */
 
 // namespace:
 this.fanvas = this.fanvas||{};

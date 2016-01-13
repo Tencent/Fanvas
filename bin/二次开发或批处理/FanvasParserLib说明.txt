@@ -1,0 +1,20 @@
+这里把Fanvas Parser部分封装成swc，方便使用者二次开发
+使用方法：
+			stage.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):void
+			{
+				var file:FileReference = new FileReference();
+				file.browse([new FileFilter("swf", "*.swf")]);
+				file.addEventListener(Event.SELECT, function(e:Event):void
+				{
+					file.load();
+					file.addEventListener(Event.COMPLETE, function(e1:Event):void
+					{
+						//API其实只有这一句
+						FanvasParser.parse(file.data, function(data:*):void
+						{
+							trace(data.swfData is ByteArray, data.swfData.length);		//bytearray
+							trace(data.warning);	//string
+						}, 'swfData');		//导出的js数据对象名称
+					});
+				});
+			});

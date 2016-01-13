@@ -13,9 +13,9 @@
 */
 package exporters.JSExporter
 {
-	import deng.fzip.FZip;
-	
 	import flash.utils.ByteArray;
+	
+	import deng.fzip.FZip;
 	
 	import model.SWFData;
 	
@@ -31,15 +31,17 @@ package exporters.JSExporter
 		}
 		
 		/**
+		 * @param dataObjectName 导出的js数据对象的名称，默认是swfData，如果批量导出多个就可以通过这个参数区分不同的swf
+		 * @param allZip 是否把所有文件都打包为zip，即使没有图片，只有js的情况也打包为zip。默认是false，只有js的时候不打包zip
 		 * @return 返回对应的HTML5 js代码或者zip（包括图片）
 		 */
-		public function export(swfData:SWFData, finish:Function):void
+		public function export(swfData:SWFData, finish:Function, dataObjectName:String = "swfData", allZip:Boolean = false):void
 		{
 			new SWFDataExporter().export(swfData, function(data:Object):void
 			{
-				var js:String = "var swfData = " + data.data + ";";
+				var js:String = "var " + dataObjectName + " = " + data.data + ";";
 				
-				if(data.images.length == 0)
+				if(data.images.length == 0 && allZip == false)
 				{
 					finish(js);
 				}

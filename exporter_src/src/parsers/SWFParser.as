@@ -14,9 +14,8 @@
 package parsers
 {
 	import com.codeazur.as3swf.SWF;
-	import com.codeazur.as3swf.tags.TagDefineShape;
 	
-	import flash.display.Loader;
+	import flash.utils.ByteArray;
 	
 	import model.ElementDefinitionPool;
 	import model.SWFData;
@@ -28,27 +27,38 @@ package parsers
 	 */
 	public class SWFParser
 	{
-		private var _swf:Loader;
+		private var _by:ByteArray;
 		/**
 		 * 加载外部swf的Loader。需要Loader.contentLoaderInfo的complete事件之后调用
 		 */
-		public function SWFParser(loader:Loader)
+		public function SWFParser(by:ByteArray)
 		{
-			_swf = loader;
+			_by = by;
 		}
 		
-		public function parse():SWFData
+		
+		/**
+		 * 调用parse开始解析，返回转化后的中间数据和警告信息（如果有）
+		 * @return Object{	<br>
+		 * 		swfData: SWFData,	<br>
+		 * 		warning: [String]	<br>
+		 * }
+		 */
+		public function parse():Object
 		{
-			var swf:SWF = new SWF(_swf.contentLoaderInfo.bytes);		//依赖外部库读取二进制信息
+			var swf:SWF = new SWF(_by);		//依赖外部库读取二进制信息
 			var swfData:SWFData = new SWFData();
 			swfData.swf = swf;
 			swfData.backgroundColor = swf.backgroundColor;
 			swfData.frameRate = swf.frameRate;
-			swfData.stageWidth = _swf.contentLoaderInfo.width;
-			swfData.stageHeight = _swf.contentLoaderInfo.height;
+			swfData.stageWidth = swf.frameSize.rect.width;
+			swfData.stageHeight = swf.frameSize.rect.height;
 			swfData.elementDefinitionPool = new ElementDefinitionPool();
-			new MovieClipParser().parse(swf, swfData.elementDefinitionPool);
-			return swfData;
+			var warningMessage:Array = new MovieClipParser().parse(swfData);
+			return {
+				warning: warningMessage,
+				swfData: swfData
+			};
 		}
 	}
 }

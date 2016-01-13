@@ -92,15 +92,14 @@ var p = Stage.prototype = new fanvas.Container();
         if(swfData.bgColor)
             this.canvas.setAttribute("style", (this.canvas.getAttribute("style") || "") + ";background-color:" + swfData.bgColor);
         this.root = this;
-        this.dirtyThresholdArea = canvas.width * canvas.height * 2 / 3;
         this._prebuildShapes(swfData.definitionPool);
 
         var mainMC = new fanvas.MovieClip(swfData.definitionPool, 0, config);
         config.scale && (mainMC.scaleX = mainMC.scaleY = config.scale);
         canvas.width = swfData.stageWidth*mainMC.scaleX;
         canvas.height = swfData.stageHeight*mainMC.scaleY;
+        this.dirtyThresholdArea = canvas.width * canvas.height * 2 / 3;
         mainMC.globalMatrix = mainMC.getMatrix();       //use in dirty rect redrawing
-//        alert(canvas.width + " " + canvas.height + " " + mainMC.scaleX + " " + mainMC.scaleY);
         this.addChild(mainMC);
         config.showFPS && (this.stats = new fanvas.Stats(this.canvas.getContext("2d")));
 	};
@@ -112,13 +111,18 @@ var p = Stage.prototype = new fanvas.Container();
 	 *
 	 * @method update
      * @param delta 毫秒
+     * @param noDraw 只形变，不实际绘制，gotoAndStop时使用
      */
-	p.update = function(delta) {
+	p.update = function(delta, noDraw) {
 		if (!this.canvas) { return; }
 
         var mc = this.getChildAt(0);
         var dirtyRectList = this.dirtyRectList = [];
         mc.update();    //push the main MC to go forward, and calculate a new dirtyRect list
+
+        if(noDraw){
+            return;
+        }
 
         if(dirtyRectList.length){
             var ctx = this.canvas.getContext("2d");
@@ -190,6 +194,8 @@ var p = Stage.prototype = new fanvas.Container();
         this.removeAllChildren();
         var mainMC = new fanvas.MovieClip(this.swfData.definitionPool, 0, this.config);
         this.addChild(mainMC);
+        this.config.scale && (mainMC.scaleX = mainMC.scaleY = this.config.scale);
+        mainMC.globalMatrix = mainMC.getMatrix();       //use in dirty rect redrawing
     };
 
 fanvas.Stage = Stage;

@@ -74,7 +74,7 @@ this.fanvas = this.fanvas||{};
             var o = {"canvas":canvas, "config":config, "frame":0};
             canvasList.push(o);
             o.stage = new fanvas.Stage(canvas, swfData, config);
-            o.timer = new fanvas.Timer(swfData.frameRate, function(delta) {
+            var onTick = function(delta) {
                 o.stage.update(delta);
                 o.frame++;
                 if(config.onFrame){
@@ -84,8 +84,10 @@ this.fanvas = this.fanvas||{};
                     o.timer.pause();
                     config.autoPlay = true;
                 }
-            });
+            };
+            o.timer = new fanvas.Timer(swfData.frameRate, onTick);
             o.timer.start();
+            onTick(0);
         };
 
         config = config || {};
@@ -132,8 +134,12 @@ this.fanvas = this.fanvas||{};
                 canvasList[i].stage.replay();
                 canvasList[i].frame = 0;
             }
-            for (var j = 0; j < index-canvasList[i].frame; j++) {
-                canvasList[i].stage.update();
+            var steps = index-canvasList[i].frame-1;
+            for (var j = 0; j < steps; j++) {
+                canvasList[i].stage.update(0, true);
+            }
+            if(steps >= 0){
+                canvasList[i].stage.update(0, false);
             }
             canvasList[i].frame = index;
             if(!stop){

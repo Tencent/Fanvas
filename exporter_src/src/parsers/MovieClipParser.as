@@ -14,8 +14,8 @@
 package parsers
 {
 		
-	import com.codeazur.as3swf.SWF;
 	import com.codeazur.as3swf.SWFTimelineContainer;
+	import com.codeazur.as3swf.data.consts.BitmapFormat;
 	import com.codeazur.as3swf.data.filters.Filter;
 	import com.codeazur.as3swf.data.filters.FilterBlur;
 	import com.codeazur.as3swf.data.filters.FilterColorMatrix;
@@ -68,6 +68,7 @@ package parsers
 	import model.ElementDefinitionPool;
 	import model.InstanceData;
 	import model.MovieClipData;
+	import model.SWFData;
 	import model.TweenData;
 	import model.frameAction.BaseFrameAction;
 	import model.frameAction.PlaceElementAction;
@@ -82,6 +83,7 @@ package parsers
 	public class MovieClipParser
 	{
 		private var _elementPool:ElementDefinitionPool;
+		private var _warning:Array;
 		
 		/**
 		 * 调用parse开始解析
@@ -91,11 +93,22 @@ package parsers
 		{
 		}
 		
-		public function parse(swf:SWF, elementPool:ElementDefinitionPool):void
+		/**
+		 * 直接修改swfData，返回对应的警告信息列表
+		 */
+		public function parse(swfData:SWFData):Array
 		{
-			_elementPool = elementPool;
-			parseElementDefinitions(swf);
-			trace ("aa");
+			_warning = [];
+			_elementPool = swfData.elementDefinitionPool;
+			parseElementDefinitions(swfData.swf);
+			return _warning;
+		}
+		
+		private function addWarning(msg:String):void
+		{
+			var index:int = _warning.indexOf(msg);
+			if(index < 0)
+				_warning.push(msg);
 		}
 
 		/**
@@ -116,26 +129,49 @@ package parsers
 				if(tag is TagFileAttributes || tag is TagMetadata || tag is TagSetBackgroundColor || tag is TagDefineSceneAndFrameLabelData)
 					continue;
 				
-				if(tag is TagDefineShape) {
+				if(tag is TagDefineShape) 
+				{
 					_elementPool.push(ShapeParser.parse(tag as TagDefineShape));
-				} else if(tag is TagDefineSprite) {
+				}
+				else if(tag is TagDefineSprite) 
+				{
 					parseElementDefinitions(tag as TagDefineSprite);
-				} else if(tag is TagEnd || tag is TagRemoveObject2 || tag is TagPlaceObject2 || tag is TagPlaceObject3 || tag is TagShowFrame) {
+				} 
+				else if(tag is TagEnd || tag is TagRemoveObject2 || tag is TagPlaceObject2 || tag is TagPlaceObject3 || tag is TagShowFrame) 
+				{
 					tags.push(tag);
-				} else if (tag is TagDefineBits || tag is TagDefineBitsLossless || tag is TagJPEGTables) {
+				} 
+				else if (tag is TagDefineBits || tag is TagDefineBitsLossless || tag is TagJPEGTables) 
+				{
 					//不作处理，bitmap处理
-				} else if(tag is TagDefineMorphShape) {
-					Fanvas.warningMessage += "暂时不支持补间形状，跳过。";
-				} else if (tag is TagDoABC || tag is TagDoAction || tag is TagSymbolClass || tag is TagDoABCDeprecated) {
-					Fanvas.warningMessage += "暂时不支持链接和代码,跳过。";
-				} else if (tag is TagCSMTextSettings || tag is TagDefineEditText || tag is TagDefineFont || tag is TagDefineFontAlignZones || tag is TagDefineFontInfo || tag is TagDefineFontName || tag is TagDefineText) {
-					Fanvas.warningMessage += "暂时不支持文字，跳过。";
-				} else if (tag is TagDefineButton || tag is TagDefineButton2 || tag is TagDefineButtonCxform || tag is TagDefineButtonSound) {
-					Fanvas.warningMessage += "暂时不支持按钮，跳过。";
-				} else if (tag is TagSoundStreamBlock || tag is TagSoundStreamHead || tag is TagDefineSound) {
-					Fanvas.warningMessage += "暂时不支持声音，跳过。";
-				} else {
-					Fanvas.warningMessage += "未知tag，跳过。";
+				} 
+				else if(tag is TagDefineMorphShape) 
+				{
+					addWarning("暂时不支持补间形状。");
+				} 
+				else if (tag is TagDoABC || tag is TagDoAction || tag is TagSymbolClass || tag is TagDoABCDeprecated) 
+				{
+					addWarning("暂时不支持链接和代码。");
+				} 
+				else if (tag is TagCSMTextSettings || tag is TagDefineEditText || tag is TagDefineFont || tag is TagDefineFontAlignZones || tag is TagDefineFontInfo || tag is TagDefineFontName || tag is TagDefineText) 
+				{
+					addWarning("暂时不支持文字，请把文字打散（ctrl+b），变成矢量图。");
+				} 
+				else if (tag is TagDefineButton || tag is TagDefineButton2 || tag is TagDefineButtonCxform || tag is TagDefineButtonSound) 
+				{
+					addWarning("暂时不支持按钮。");
+				}
+				else if (tag is TagSoundStreamBlock || tag is TagSoundStreamHead || tag is TagDefineSound) 
+				{
+					addWarning("暂时不支持声音，请导出动画后使用js添加声音。");
+				} 
+				else if (tag is TagDefineBitsLossless && (tag as TagDefineBitsLossless).bitmapFormat == BitmapFormat.BIT_15)
+				{
+					addWarning("swf包含的图片含有低版本图片（无法导出该图片），请使用Actionscript 3.0重新导出swf。");
+				}
+				else 
+				{
+					addWarning("swf含有未支持的其他tag。");
 				}
 			}
 			
