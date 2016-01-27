@@ -50,6 +50,9 @@ runtime是js运行库，用于解析json数据，转化为最终canvas动画。
 DEMO
 ------------------------------------------
 http://kenkozheng.github.io/fanvas/magicEmotion/demo1/
+
 http://kenkozheng.github.io/fanvas/magicEmotion/demo2/
+
 http://kenkozheng.github.io/fanvas/magicEmotion/demo3/
+
 http://kenkozheng.github.io/fanvas/magicEmotion/demo4/
