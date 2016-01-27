@@ -9,7 +9,6 @@ Fanvas是Flash和Canvas的完美结合，可以把swf（包括矢量和位图）
 
 嘿嘿~~~让美术妹子也搭上H5的快车。
 
-最新版本请直接到官方获取：https://github.com/TencentOpen/Fanvas
 
 
 Fanvas的技术难点？
@@ -46,3 +45,11 @@ Fanvas的优势？
 exporter是as3.0实现的swf文件解析器，解析后输出json数据；
 
 runtime是js运行库，用于解析json数据，转化为最终canvas动画。
+
+
+DEMO
+------------------------------------------
+http://kenkozheng.github.io/fanvas/magicEmotion/demo1/
+http://kenkozheng.github.io/fanvas/magicEmotion/demo2/
+http://kenkozheng.github.io/fanvas/magicEmotion/demo3/
+http://kenkozheng.github.io/fanvas/magicEmotion/demo4/
