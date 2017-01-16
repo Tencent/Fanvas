@@ -246,17 +246,19 @@ package exporters.JSExporter
 								break;
 							}
 						}
-						jpegTables.position = 0;
-						head = jpegTables.readUnsignedInt();
-						if(head == 0xffd9ffd8)		//Before version 8 of the SWF file format, SWF files could contain an erroneous header of 0xFF, 0xD9, 0xFF, 0xD8 before the JPEG SOI marker.
-							jpegTables.position = 4;	//跳过
-						else
+						if(jpegTables.length > 0){		//增加兼容处理，虽然type==6，但table为空，还是直接导出原有数据，不做加工
 							jpegTables.position = 0;
-						var newFile:ByteArray = new ByteArray();
-						jpegTables.readBytes(newFile, 0, jpegTables.bytesAvailable - 2);	//最后的FF D9也略过
-						file.position = 2;		//跳过原来的FF D8
-						file.readBytes(newFile, newFile.length);							//把原来jpg数据接上去
-						file = newFile;
+							head = jpegTables.readUnsignedInt();
+							if(head == 0xffd9ffd8)		//Before version 8 of the SWF file format, SWF files could contain an erroneous header of 0xFF, 0xD9, 0xFF, 0xD8 before the JPEG SOI marker.
+								jpegTables.position = 4;	//跳过
+							else
+								jpegTables.position = 0;
+							var newFile:ByteArray = new ByteArray();
+							jpegTables.readBytes(newFile, 0, jpegTables.bytesAvailable - 2);	//最后的FF D9也略过
+							file.position = 2;		//跳过原来的FF D8
+							file.readBytes(newFile, newFile.length);							//把原来jpg数据接上去
+							file = newFile;
+						}
 					}
 				}
 			}
