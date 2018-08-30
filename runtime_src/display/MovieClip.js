@@ -195,7 +195,7 @@ this.fanvas = this.fanvas||{};
         } else if (child.shadow != null) {
             child.shadow = null;
         }
-        if (instanceData.filters && instanceData.filters.length > 0) {
+        if (instanceData.filters && instanceData.filters.length > 0 && child.rect.width && child.rect.height) {
             var filterInfo;
             var filter;
             var filters = [];

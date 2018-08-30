@@ -64,7 +64,7 @@ this.fanvas = this.fanvas||{};
      *
      * @param canvas {HTMLCanvasElement | String | Object} canvas A canvas object, or the string id of a canvas object in the current document.
      * @param swfData {Object}
-     * @param config {Object} {imagePath: images path, cache: cache Shape or not}
+     * @param config {Object} {imagePath: images path, cache: cache Shape or not, onPreloadProgress, onPreloadError}
      */
     fanvas.play = function(canvas, swfData, config) {
         if(fanvas.indexOfCanvas(canvasList, canvas) >= 0 || !swfData)
@@ -97,7 +97,7 @@ this.fanvas = this.fanvas||{};
             for (var i = 0; i < swfData.images.length; i++) {
                 list.push(imagePath + swfData.images[i]);
             }
-            new fanvas.Preloader().load(list, fanvas.imageList, start);
+            new fanvas.Preloader().load(list, fanvas.imageList, start, config.onPreloadProgress, config.onPreloadError);
         }else{
             start();
         }
@@ -340,22 +340,31 @@ this.fanvas = this.fanvas||{};
      *
      * @param list {array} url list
      * @param imageList {array} used to store all image elements
-     * @param callback
+     * @param finish
+     * @param onProgress
+     * @param onError
      */
-    p.load = function(list, imageList, callback) {
+    p.load = function(list, imageList, finish, onProgress, onError) {
         if(list.length == 0)
-            callback();
+            finish();
         this._taskCount = list.length;
         this._finishCount = 0;
         var that = this;
+        var errorReturned = false;
         for (var i = 0; i < list.length; i++) {
             var image = document.createElement("img");
             image.onload = function(){
                 that._finishCount++;
+                onProgress && onProgress(that._finishCount/that._taskCount);
                 if(that._finishCount == that._taskCount)
-                    callback();
+                    finish();
             };
-            image.src = list[i];
+            image.onerror = function () {
+                if(!errorReturned && onError){
+                    onError();
+                }
+            };
+            image.src = list[i] + '?max_age=604800';
             imageList[list[i]] = image;
         }
     };
@@ -2666,7 +2675,7 @@ this.fanvas = this.fanvas||{};
         } else if (child.shadow != null) {
             child.shadow = null;
         }
-        if (instanceData.filters && instanceData.filters.length > 0) {
+        if (instanceData.filters && instanceData.filters.length > 0 && child.rect.width && child.rect.height) {
             var filterInfo;
             var filter;
             var filters = [];
